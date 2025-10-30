@@ -14,7 +14,7 @@ st.chat_message("ai",avatar="🦊").write("Hi, I'm fox I take a bit time & Gener
 # -------------------------------
 # Gemini API Setup
 # -------------------------------
-api_key = st.text_input("Enter your Gemini API Key", type="password")
+api_key = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 if api_key:
     genai.configure(api_key=api_key)
 
@@ -91,6 +91,7 @@ User prompt: {prompt}
 # -------------------------------
 st.markdown("---")
 st.caption("Fox - AI Web App Maker • Powered by Gemini • Developed by Debayan")
+
 
 
 
