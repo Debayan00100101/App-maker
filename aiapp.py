@@ -9,7 +9,7 @@ import base64
 st.set_page_config(page_title="Fox - AI Web App Maker", layout="wide")
 
 st.title("🦊 Fox - AI Web App Maker")
-st.write("Generate and preview complete HTML/CSS/JS web apps instantly!")
+st.chat_message("ai",avatar="🦊").write("Hi, I'm fox I take a bit time & Generate and preview complete web apps instantly!")
 
 # -------------------------------
 # Gemini API Setup
@@ -91,3 +91,4 @@ User prompt: {prompt}
 # -------------------------------
 st.markdown("---")
 st.caption("Fox - AI Web App Maker • Powered by Gemini • Developed by Debayan")
+
