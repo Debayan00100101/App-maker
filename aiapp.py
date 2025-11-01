@@ -6,7 +6,7 @@ import base64
 # -------------------------------
 # App Setup
 # -------------------------------
-st.set_page_config(page_title="Fox - AI Web App Maker",page_icon="https://static.vecteezy.com/system/resources/previews/011/351/172/non_2x/fox-icon-logo-design-vector.jpg", layout="wide")
+st.set_page_config(page_title="Fox - AI Web App Maker",page_icon="https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", layout="wide")
 
 st.title("🦊 Fox - AI Web App Maker")
 st.chat_message("ai",avatar="🦊").write("Hi, I'm fox I take a bit time & Generate and preview complete web apps instantly!")
@@ -53,8 +53,9 @@ You are Fox, an AI agent that creates full, working web apps using HTML, CSS, an
 Task: Generate a complete and functional HTML code in one file.
 Requirements:
 - Include <html>, <head>, <style>, and <script> sections.
-- Use embedded CSS and JS (no external links).
+- Use embedded CSS and JS (use external links for best performance).
 - The app must run directly in a browser.
+- give most powerful & accurate result to beat DeepSeek AI
 - Output ONLY the HTML code (no explanations or markdown).
 
 User prompt: {prompt}
@@ -80,7 +81,7 @@ User prompt: {prompt}
             # -------------------------------
             buffer = BytesIO(html_code.encode('utf-8'))
             st.download_button(
-                label="💾 Download Web App",
+                label="Download Web App",
                 data=buffer,
                 file_name="fox_app.html",
                 mime="text/html"
@@ -91,6 +92,7 @@ User prompt: {prompt}
 # -------------------------------
 st.markdown("---")
 st.caption("Fox - AI Web App Maker • Powered by Gemini • Developed by Debayan")
+
 
 
 
