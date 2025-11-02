@@ -115,8 +115,6 @@ def show_login_ui():
     st.subheader("Build and manage your AI-powered web apps")
 
     tabs = ["Sign In", "Sign Up"]
-    if st.session_state.get("is_developer", False):
-        tabs.append("View Users")
     tab_objs = st.tabs(tabs)
 
     with tab_objs[0]:
@@ -158,7 +156,6 @@ def show_login_ui():
             st.session_state["logged_in"] = True
             log_event(email, "sign-in")
             st.success(f"Welcome back, {email.split('@')[0]}!")
-            # Return early to allow rerun to show main app
             return
 
     with tab_objs[1]:
@@ -180,8 +177,13 @@ def show_login_ui():
                     except sqlite3.IntegrityError:
                         st.warning("This email is already registered.")
 
-    if st.session_state.get("is_developer", False) and len(tab_objs) == 3:
-        with tab_objs[2]:
+def show_fox_ai_app():
+    st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
+    st.sidebar.title("Fox AI")
+    st.sidebar.success(f"Logged in as {st.session_state['user']}")
+
+    if st.session_state.get("is_developer", False):
+        with st.sidebar.expander("Developer Tools"):
             st.write("### Registered Users")
             users = fetch_all_users()
             if users:
@@ -190,11 +192,6 @@ def show_login_ui():
             else:
                 st.info("No registered users yet.")
 
-
-def show_fox_ai_app():
-    st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
-    st.sidebar.title("Fox AI")
-    st.sidebar.success(f"Logged in as {st.session_state['user']}")
     if st.sidebar.button("Log Out"):
         for key in ["user", "github_username", "is_developer", "logged_in"]:
             if key in st.session_state:
