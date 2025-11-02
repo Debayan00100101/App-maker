@@ -23,10 +23,6 @@ API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 # DATABASE FUNCTIONS
 # ----------------------------------
 def init_db():
-    if not os.path.exists(DB_FILE):
-    init_db()
-else:
-    # Ensure table exists even if DB is present but no table created yet
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -39,7 +35,6 @@ else:
     conn.commit()
     conn.close()
 
-
 def add_user(email, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -49,12 +44,16 @@ def add_user(email, password):
     conn.close()
 
 def get_user(email):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
-    return user
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+        conn.close()
+        return user
+    except sqlite3.OperationalError:
+        init_db()
+        return None
 
 def valid_email(email):
     pattern = r"^[a-zA-Z0-9._%+-]+@fox\.ai$"
@@ -204,5 +203,3 @@ else:
     show_fox_ai_app()
 
 st.write("---")
-
-
