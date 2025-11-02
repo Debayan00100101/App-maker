@@ -182,23 +182,24 @@ def show_login_ui():
 
     with tab_objs[1]:
         st.write("### Create a Fox account")
-        new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
-        new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
-        new_password = st.text_input("Password", type="password", key="signup_password")
+        with st.form("signup_form"):
+            new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
+            new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
+            new_password = st.text_input("Password", type="password", key="signup_password")
 
-        if st.button("Sign Up"):
-            if not valid_email(new_email):
-                st.error("Invalid email! Only @fox.ai addresses allowed.")
-                return
-            if len(new_password) < 6:
-                st.warning("Password must be at least 6 characters long.")
-                return
-            try:
-                add_user(new_email, new_github or "", new_password)
-                log_event(new_email, "sign-up")
-                st.success("Account created successfully! You can now sign in.")
-            except sqlite3.IntegrityError:
-                st.warning("This email is already registered.")
+            submit_signup = st.form_submit_button("Sign Up")
+            if submit_signup:
+                if not valid_email(new_email):
+                    st.error("Invalid email! Only @fox.ai addresses allowed.")
+                elif len(new_password) < 6:
+                    st.warning("Password must be at least 6 characters long.")
+                else:
+                    try:
+                        add_user(new_email, new_github or "", new_password)
+                        log_event(new_email, "sign-up")
+                        st.success("Account created successfully! You can now sign in.")
+                    except sqlite3.IntegrityError:
+                        st.warning("This email is already registered.")
 
     if st.session_state.get("is_developer", False) and len(tab_objs) == 3:
         with tab_objs[2]:
