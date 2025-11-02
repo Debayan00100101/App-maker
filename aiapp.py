@@ -23,6 +23,10 @@ API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 # DATABASE FUNCTIONS
 # ----------------------------------
 def init_db():
+    if not os.path.exists(DB_FILE):
+    init_db()
+else:
+    # Ensure table exists even if DB is present but no table created yet
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -34,6 +38,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+
 
 def add_user(email, password):
     conn = sqlite3.connect(DB_FILE)
@@ -199,4 +204,5 @@ else:
     show_fox_ai_app()
 
 st.write("---")
+
 
