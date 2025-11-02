@@ -10,7 +10,7 @@ import hashlib
 from streamlit.runtime.scriptrunner import RerunException
 
 def rerun():
-    raise RerunException()
+    st.experimental_rerun()
 
 st.set_page_config(
     page_title="Fox - AI Web App Maker",
@@ -115,6 +115,7 @@ else:
 def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
+
     if "is_developer" not in st.session_state:
         st.session_state["is_developer"] = False
     if "github_username_input" not in st.session_state:
@@ -146,18 +147,14 @@ def show_login_ui():
             if not valid_email(email):
                 st.error("Invalid email format! Must end with @fox.ai")
                 return
-
             user = get_user(email)
             if not user:
                 st.error("No account found. Please sign up.")
                 return
-
             stored_email, stored_github, stored_hash = user
-
             if not bcrypt.checkpw(password.encode(), stored_hash):
                 st.error("Incorrect password.")
                 return
-
             if show_fav_word_input:
                 if fav_word:
                     fav_word_hash = hashlib.sha256(fav_word.encode('utf-8')).hexdigest()
@@ -186,7 +183,6 @@ def show_login_ui():
             new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
             new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
             new_password = st.text_input("Password", type="password", key="signup_password")
-
             submit_signup = st.form_submit_button("Sign Up")
             if submit_signup:
                 if not valid_email(new_email):
