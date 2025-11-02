@@ -20,6 +20,7 @@ DEVELOPER_GITHUB_USERNAME = "debayan00100101"
 FAVORITE_WORD_HASH = hashlib.sha256("super".encode('utf-8')).hexdigest()
 DEVELOPER_EMAIL = "debayan@fox.ai"
 
+
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -42,6 +43,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+
 def add_user(email, github_username, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -49,6 +51,7 @@ def add_user(email, github_username, password):
     cursor.execute("INSERT INTO users (email, github_username, password_hash) VALUES (?, ?, ?)", (email, github_username, hashed_pw))
     conn.commit()
     conn.close()
+
 
 def get_user(email):
     try:
@@ -65,9 +68,11 @@ def get_user(email):
         else:
             raise
 
+
 def valid_email(email):
     pattern = r"^[a-zA-Z0-9._%+-]+@fox\.ai$"
     return re.match(pattern, email)
+
 
 def log_event(email, action):
     conn = sqlite3.connect(DB_FILE)
@@ -76,6 +81,7 @@ def log_event(email, action):
     conn.commit()
     conn.close()
 
+
 def fetch_all_users():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -83,6 +89,7 @@ def fetch_all_users():
     users = cursor.fetchall()
     conn.close()
     return users
+
 
 if not os.path.exists(DB_FILE):
     init_db()
@@ -108,6 +115,7 @@ else:
     conn.commit()
     conn.close()
 
+
 def show_login_ui():
     if "is_developer" not in st.session_state:
         st.session_state["is_developer"] = False
@@ -124,18 +132,17 @@ def show_login_ui():
 
     with tab_objs[0]:
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
-        github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
 
-        if github_username != st.session_state.github_username_input:
+        github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
+        if st.session_state.github_username_input != github_username:
             st.session_state.github_username_input = github_username
 
         password = st.text_input("Password", type="password", key="login_password")
 
         show_fav_word_input = st.session_state.github_username_input == DEVELOPER_GITHUB_USERNAME
+        fav_word = ""
         if show_fav_word_input:
             fav_word = st.text_input("If you are the developer, please enter your favorite word:", type="password", key="fav_word_input")
-        else:
-            fav_word = None
 
         if st.button("Sign In"):
             if not valid_email(email):
@@ -198,6 +205,7 @@ def show_login_ui():
             else:
                 st.info("No registered users yet.")
 
+
 def show_fox_ai_app():
     st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
     st.sidebar.title("Fox AI")
@@ -259,8 +267,6 @@ User prompt: {prompt}
                 except Exception as e:
                     st.error(f"Gemini API Error: {e}")
 
-    st.markdown("---")
-    st.caption('Fox - Powered by Gemini • Developed by Debayan Das • Grade 7 • THS Rampurhat, India')
 
 if "user" not in st.session_state:
     show_login_ui()
