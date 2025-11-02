@@ -197,7 +197,7 @@ def show_fox_ai_app():
         for key in ["user", "github_username", "is_developer", "logged_in"]:
             if key in st.session_state:
                 del st.session_state[key]
-        st.experimental_rerun()
+        
 
     st.title("🦊 Fox - AI Web App Maker")
     st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
@@ -257,4 +257,5 @@ else:
     show_login_ui()
 
 st.write("---")
+
 
