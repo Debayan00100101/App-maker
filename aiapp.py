@@ -7,10 +7,10 @@ import google.generativeai as genai
 from io import BytesIO
 import base64
 import hashlib
-from streamlit.runtime.scriptrunner.script_runner import RerunException
+from streamlit.runtime.scriptrunner import RerunException
 
 def rerun():
-    raise RerunException(st.script_request_queue.RerunData(None))
+    raise RerunException()
 
 st.set_page_config(
     page_title="Fox - AI Web App Maker",
