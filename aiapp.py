@@ -18,7 +18,7 @@ st.set_page_config(
 
 DB_FILE = "fox.db"
 API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
-DEVELOPER_EMAIL = "developer@fox.ai"  # Set your developer email here for admin access
+DEVELOPER_EMAIL = "developer@fox.ai"  # Replace with your developer email
 
 # ----------------------------------
 # DATABASE FUNCTIONS
@@ -86,7 +86,7 @@ def fetch_all_users():
     conn.close()
     return users
 
-# Initialize DB on startup if not present
+# Make sure DB and tables exist on app start
 if not os.path.exists(DB_FILE):
     init_db()
 else:
@@ -117,6 +117,7 @@ def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
 
+    # Show 'View Users' tab only if logged in as developer
     if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
         tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
     else:
