@@ -7,6 +7,10 @@ import google.generativeai as genai
 from io import BytesIO
 import base64
 import hashlib
+from streamlit.runtime.scriptrunner.script_runner import RerunException
+
+def rerun():
+    raise RerunException(st.script_request_queue.RerunData(None))
 
 st.set_page_config(
     page_title="Fox - AI Web App Maker",
@@ -128,7 +132,7 @@ def show_login_ui():
 
         if github_username != st.session_state.github_username_input:
             st.session_state.github_username_input = github_username
-            st.experimental_rerun()
+            rerun()
 
         password = st.text_input("Password", type="password", key="login_password")
 
@@ -163,7 +167,7 @@ def show_login_ui():
                         st.session_state["github_username"] = github_username
                         log_event(email, "sign-in (developer)")
                         st.success(f"Welcome back, Developer {email.split('@')[0]}!")
-                        st.rerun()
+                        rerun()
                     else:
                         st.error("Wrong favorite word. Access denied.")
                 else:
@@ -174,7 +178,7 @@ def show_login_ui():
                 st.session_state["github_username"] = github_username or ""
                 log_event(email, "sign-in")
                 st.success(f"Welcome back, {email.split('@')[0]}!")
-                st.rerun()
+                rerun()
 
     with tab_objs[1]:
         st.write("### Create a Fox account")
@@ -214,7 +218,7 @@ def show_fox_ai_app():
         del st.session_state["user"]
         del st.session_state["github_username"]
         del st.session_state["is_developer"]
-        st.rerun()
+        rerun()
 
     st.title("🦊 Fox - AI Web App Maker")
     st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
