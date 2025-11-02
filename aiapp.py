@@ -16,7 +16,7 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_FILE = "fox_users.db"
+DB_FILE = "fox.db"
 API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 
 # ----------------------------------
@@ -199,3 +199,4 @@ else:
     show_fox_ai_app()
 
 st.write("---")
+
