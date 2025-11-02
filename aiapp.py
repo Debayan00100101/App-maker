@@ -32,7 +32,6 @@ def init_db():
             password_hash BLOB
         )
     """)
-    # Added table for logging sign-in and sign-up events
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS login_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,18 +52,24 @@ def add_user(email, password):
     conn.close()
 
 def get_user(email):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    conn.close()
-    return user
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
+        conn.close()
+        return user
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            init_db()
+            return None
+        else:
+            raise
 
 def valid_email(email):
     pattern = r"^[a-zA-Z0-9._%+-]+@fox\.ai$"
     return re.match(pattern, email)
 
-# New function to log events
 def log_event(email, action):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -72,9 +77,38 @@ def log_event(email, action):
     conn.commit()
     conn.close()
 
-# Initialize database if needed
+def fetch_all_users():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email FROM users ORDER BY id DESC")
+    users = cursor.fetchall()
+    conn.close()
+    return users
+
+# Initialize database properly
 if not os.path.exists(DB_FILE):
     init_db()
+else:
+    # Confirm tables exist
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password_hash BLOB
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS login_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT,
+            action TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
 
 # ----------------------------------
 # AUTHENTICATION UI
@@ -83,7 +117,7 @@ def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
 
-    tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+    tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
 
     # --- SIGN IN TAB ---
     with tab1:
@@ -100,7 +134,7 @@ def show_login_ui():
                     stored_hash = user[1]
                     if bcrypt.checkpw(password.encode(), stored_hash):
                         st.session_state["user"] = email
-                        log_event(email, "sign-in")  # Log sign-in event
+                        log_event(email, "sign-in")
                         st.success(f"Welcome back, {email.split('@')[0]}!")
                         st.rerun()
                     else:
@@ -122,22 +156,20 @@ def show_login_ui():
             else:
                 try:
                     add_user(new_email, new_password)
-                    log_event(new_email, "sign-up")  # Log sign-up event
+                    log_event(new_email, "sign-up")
                     st.success("Account created successfully! You can now sign in.")
                 except sqlite3.IntegrityError:
                     st.warning("This email is already registered.")
 
-# Optional: Admin function to show login logs
-def show_login_logs():
-    st.subheader("User Sign-In/Sign-Up Logs")
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, action, timestamp FROM login_logs ORDER BY timestamp DESC LIMIT 50")
-    logs = cursor.fetchall()
-    conn.close()
-
-    for email, action, timestamp in logs:
-        st.write(f"{timestamp} - {email} - {action}")
+    # --- VIEW USERS TAB ---
+    with tab3:
+        st.write("### Registered Users")
+        users = fetch_all_users()
+        if users:
+            for u in users:
+                st.write(u[0])
+        else:
+            st.info("No registered users yet.")
 
 # ----------------------------------
 # MAIN FOX AI APP
