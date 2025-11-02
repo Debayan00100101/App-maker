@@ -17,8 +17,10 @@ st.set_page_config(
 )
 
 DB_FILE = "fox.db"
-API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
-DEVELOPER_EMAIL = "developer@fox.ai"  # Replace with your developer email
+API_KEY = "AIzaSyBPKJayR9Ozp2t9DRLI9NXPRoiU5VZY6U"
+# Developer credentials (email and hashed password)
+DEVELOPER_EMAIL = "sachy@fox.ai"
+DEVELOPER_PASSWORD_HASH = bcrypt.hashpw("sachy00100101".encode(), bcrypt.gensalt())
 
 # ----------------------------------
 # DATABASE FUNCTIONS
@@ -86,7 +88,7 @@ def fetch_all_users():
     conn.close()
     return users
 
-# Make sure DB and tables exist on app start
+# Ensure DB initialized properly
 if not os.path.exists(DB_FILE):
     init_db()
 else:
@@ -117,36 +119,43 @@ def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
 
-    # Show 'View Users' tab only if logged in as developer
     if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
         tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
     else:
         tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
 
-    # --- SIGN IN TAB ---
     with tab1:
         st.write("### Log in to your Fox account")
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
         password = st.text_input("Password", type="password", key="login_password")
 
         if st.button("Sign In"):
-            if not valid_email(email):
-                st.error("Invalid email format! Must end with @fox.ai")
-            else:
-                user = get_user(email)
-                if user:
-                    stored_hash = user[1]
-                    if bcrypt.checkpw(password.encode(), stored_hash):
-                        st.session_state["user"] = email
-                        log_event(email, "sign-in")
-                        st.success(f"Welcome back, {email.split('@')[0]}!")
-                        st.rerun()
-                    else:
-                        st.error("Incorrect password.")
+            if email == DEVELOPER_EMAIL:
+                # Developer login verification
+                if bcrypt.checkpw(password.encode(), DEVELOPER_PASSWORD_HASH):
+                    st.session_state["user"] = DEVELOPER_EMAIL
+                    log_event(DEVELOPER_EMAIL, "sign-in")
+                    st.success(f"Welcome developer {DEVELOPER_EMAIL}!")
+                    st.rerun()
                 else:
-                    st.error("No account found. Please sign up.")
+                    st.error("Incorrect password for developer.")
+            else:
+                if not valid_email(email):
+                    st.error("Invalid email format! Must end with @fox.ai")
+                else:
+                    user = get_user(email)
+                    if user:
+                        stored_hash = user[1]
+                        if bcrypt.checkpw(password.encode(), stored_hash):
+                            st.session_state["user"] = email
+                            log_event(email, "sign-in")
+                            st.success(f"Welcome back, {email.split('@')[0]}!")
+                            st.rerun()
+                        else:
+                            st.error("Incorrect password.")
+                    else:
+                        st.error("No account found. Please sign up.")
 
-    # --- SIGN UP TAB ---
     with tab2:
         st.write("### Create a Fox account")
         new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
@@ -165,7 +174,6 @@ def show_login_ui():
                 except sqlite3.IntegrityError:
                     st.warning("This email is already registered.")
 
-    # --- VIEW USERS TAB (Developer Only) ---
     if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
         with tab3:
             st.write("### Registered Users")
@@ -192,19 +200,16 @@ def show_fox_ai_app():
         "Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!"
     )
 
-    # --- Gemini API Setup ---
     if API_KEY:
         genai.configure(api_key=API_KEY)
     else:
         st.error("Gemini API key missing.")
         return
 
-    # --- Choose Version ---
     version = st.selectbox("Choose Fox Version", ["Pro", "Max"], index=0)
     model_map = {"Pro": "gemini-2.5-flash", "Max": "gemini-2.5-pro"}
     model_name = model_map[version]
 
-    # --- App Creation Prompt ---
     st.subheader("Describe the web app you want to create")
     prompt = st.text_area(
         "Enter your idea",
@@ -232,18 +237,15 @@ User prompt: {prompt}
                     response = model.generate_content(full_prompt)
                     html_code = response.text.strip()
 
-                    # --- Display generated code ---
                     st.success("✅ Web app created successfully!")
                     st.subheader("Generated HTML Code")
                     st.code(html_code, language="html")
 
-                    # --- Live Preview ---
                     st.subheader("Live Preview")
                     encoded_html = base64.b64encode(html_code.encode()).decode()
                     iframe_html = f'<iframe src="data:text/html;base64,{encoded_html}" width="100%" height="600"></iframe>'
                     st.components.v1.html(iframe_html, height=600)
 
-                    # --- Download Option ---
                     buffer = BytesIO(html_code.encode('utf-8'))
                     st.download_button(
                         label="Download Web App",
