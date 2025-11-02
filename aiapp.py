@@ -7,10 +7,6 @@ import google.generativeai as genai
 from io import BytesIO
 import base64
 import hashlib
-from streamlit.runtime.scriptrunner import RerunException
-
-def rerun():
-    st.experimental_rerun()
 
 st.set_page_config(
     page_title="Fox - AI Web App Maker",
@@ -113,13 +109,13 @@ else:
     conn.close()
 
 def show_login_ui():
-    st.title("🦊 Fox AI — App Maker")
-    st.subheader("Build and manage your AI-powered web apps")
-
     if "is_developer" not in st.session_state:
         st.session_state["is_developer"] = False
     if "github_username_input" not in st.session_state:
         st.session_state.github_username_input = ""
+
+    st.title("🦊 Fox AI — App Maker")
+    st.subheader("Build and manage your AI-powered web apps")
 
     tabs = ["Sign In", "Sign Up"]
     if st.session_state.get("is_developer", False):
@@ -127,13 +123,11 @@ def show_login_ui():
     tab_objs = st.tabs(tabs)
 
     with tab_objs[0]:
-        st.write("### Log in to your Fox account")
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
         github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
 
         if github_username != st.session_state.github_username_input:
             st.session_state.github_username_input = github_username
-            rerun()
 
         password = st.text_input("Password", type="password", key="login_password")
 
@@ -164,7 +158,6 @@ def show_login_ui():
                         st.session_state["github_username"] = github_username
                         log_event(email, "sign-in (developer)")
                         st.success(f"Welcome back, Developer {email.split('@')[0]}!")
-                        rerun()
                     else:
                         st.error("Wrong favorite word. Access denied.")
                 else:
@@ -175,10 +168,8 @@ def show_login_ui():
                 st.session_state["github_username"] = github_username or ""
                 log_event(email, "sign-in")
                 st.success(f"Welcome back, {email.split('@')[0]}!")
-                rerun()
 
     with tab_objs[1]:
-        st.write("### Create a Fox account")
         with st.form("signup_form"):
             new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
             new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
@@ -212,10 +203,9 @@ def show_fox_ai_app():
     st.sidebar.title("Fox AI")
     st.sidebar.success(f"Logged in as {st.session_state['user']}")
     if st.sidebar.button("Log Out"):
-        del st.session_state["user"]
-        del st.session_state["github_username"]
-        del st.session_state["is_developer"]
-        rerun()
+        for key in ["user", "github_username", "is_developer"]:
+            if key in st.session_state:
+                del st.session_state[key]
 
     st.title("🦊 Fox - AI Web App Maker")
     st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
