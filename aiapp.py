@@ -18,6 +18,7 @@ st.set_page_config(
 
 DB_FILE = "fox.db"
 API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
+DEVELOPER_EMAIL = "developer@fox.ai"  # Set your developer email here for admin access
 
 # ----------------------------------
 # DATABASE FUNCTIONS
@@ -85,11 +86,10 @@ def fetch_all_users():
     conn.close()
     return users
 
-# Initialize database properly
+# Initialize DB on startup if not present
 if not os.path.exists(DB_FILE):
     init_db()
 else:
-    # Confirm tables exist
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
@@ -117,7 +117,10 @@ def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
 
-    tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
+    if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
+        tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
+    else:
+        tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
 
     # --- SIGN IN TAB ---
     with tab1:
@@ -161,15 +164,16 @@ def show_login_ui():
                 except sqlite3.IntegrityError:
                     st.warning("This email is already registered.")
 
-    # --- VIEW USERS TAB ---
-    with tab3:
-        st.write("### Registered Users")
-        users = fetch_all_users()
-        if users:
-            for u in users:
-                st.write(u[0])
-        else:
-            st.info("No registered users yet.")
+    # --- VIEW USERS TAB (Developer Only) ---
+    if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
+        with tab3:
+            st.write("### Registered Users")
+            users = fetch_all_users()
+            if users:
+                for u in users:
+                    st.write(u[0])
+            else:
+                st.info("No registered users yet.")
 
 # ----------------------------------
 # MAIN FOX AI APP
