@@ -18,7 +18,6 @@ DB_FILE = "fox.db"
 API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 DEVELOPER_GITHUB_USERNAME = "debayan00100101"
 FAVORITE_WORD_HASH = hashlib.sha256("super".encode('utf-8')).hexdigest()
-DEVELOPER_EMAIL = "debayan@fox.ai"
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -109,8 +108,6 @@ else:
     conn.close()
 
 def show_login_ui():
-    if "is_developer" not in st.session_state:
-        st.session_state["is_developer"] = False
     if "github_username_input" not in st.session_state:
         st.session_state.github_username_input = ""
 
@@ -124,8 +121,7 @@ def show_login_ui():
 
     with tab_objs[0]:
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
-
-        github_username = st.text_input("(Optional, for developer only) GitHub Username", placeholder="your-github-username", key="login_github")
+        github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
         if st.session_state.github_username_input != github_username:
             st.session_state.github_username_input = github_username
 
@@ -148,29 +144,22 @@ def show_login_ui():
             if not bcrypt.checkpw(password.encode(), stored_hash):
                 st.error("Incorrect password.")
                 return
-            if show_fav_word_input:
-                if fav_word:
-                    fav_word_hash = hashlib.sha256(fav_word.encode('utf-8')).hexdigest()
-                    if fav_word_hash == FAVORITE_WORD_HASH:
-                        st.session_state["is_developer"] = True
-                        st.session_state["user"] = email
-                        st.session_state["github_username"] = github_username
-                        log_event(email, "sign-in (developer)")
-                        st.success(f"Welcome back, Developer {email.split('@')[0]}!")
-                        return
-                    else:
-                        st.error("Wrong favorite word. Access denied.")
-                        return
-                else:
-                    st.info("Please enter favorite word to verify developer status.")
+            if show_fav_word_input and fav_word:
+                fav_word_hash = hashlib.sha256(fav_word.encode('utf-8')).hexdigest()
+                if fav_word_hash != FAVORITE_WORD_HASH:
+                    st.error("Wrong favorite word. Access denied.")
                     return
+                st.session_state["is_developer"] = True
             else:
                 st.session_state["is_developer"] = False
-                st.session_state["user"] = email
-                st.session_state["github_username"] = github_username or ""
-                log_event(email, "sign-in")
-                st.success(f"Welcome back, {email.split('@')[0]}!")
-                return
+
+            st.session_state["user"] = email
+            st.session_state["github_username"] = github_username or ""
+            st.session_state["logged_in"] = True
+            log_event(email, "sign-in")
+            st.success(f"Welcome back, {email.split('@')[0]}!")
+            # Return early to allow rerun to show main app
+            return
 
     with tab_objs[1]:
         with st.form("signup_form"):
@@ -201,14 +190,16 @@ def show_login_ui():
             else:
                 st.info("No registered users yet.")
 
+
 def show_fox_ai_app():
     st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
     st.sidebar.title("Fox AI")
     st.sidebar.success(f"Logged in as {st.session_state['user']}")
     if st.sidebar.button("Log Out"):
-        for key in ["user", "github_username", "is_developer"]:
+        for key in ["user", "github_username", "is_developer", "logged_in"]:
             if key in st.session_state:
                 del st.session_state[key]
+        st.experimental_rerun()
 
     st.title("🦊 Fox - AI Web App Maker")
     st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
@@ -262,10 +253,9 @@ User prompt: {prompt}
                 except Exception as e:
                     st.error(f"Gemini API Error: {e}")
 
-if "user" in st.session_state:
+if st.session_state.get("logged_in", False):
     show_fox_ai_app()
 else:
     show_login_ui()
 
 st.write("---")
-
