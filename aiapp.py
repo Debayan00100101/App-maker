@@ -6,10 +6,8 @@ import os
 import google.generativeai as genai
 from io import BytesIO
 import base64
+import hashlib
 
-# ----------------------------------
-# CONFIGURATION
-# ----------------------------------
 st.set_page_config(
     page_title="Fox - AI Web App Maker",
     page_icon="https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg",
@@ -18,12 +16,10 @@ st.set_page_config(
 
 DB_FILE = "fox.db"
 API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
-DEVELOPER_GITHUB_USERNAME = "debayan00100101"  # trusted developer github username
-DEVELOPER_EMAIL = "debayan@fox.ai"  # trusted developer email for extra authentication
+DEVELOPER_GITHUB_USERNAME = "debayan00100101"
+FAVORITE_WORD_HASH = hashlib.sha256("super".encode('utf-8')).hexdigest()
+DEVELOPER_EMAIL = "debayan@fox.ai"
 
-# ----------------------------------
-# DATABASE FUNCTIONS
-# ----------------------------------
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -112,86 +108,104 @@ else:
     conn.commit()
     conn.close()
 
-# ----------------------------------
-# AUTHENTICATION UI
-# ----------------------------------
 def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
+    if "is_developer" not in st.session_state:
+        st.session_state["is_developer"] = False
+    if "github_username_input" not in st.session_state:
+        st.session_state.github_username_input = ""
 
-    # Determine if developer logged in with correct username and email
-    is_developer = "user" in st.session_state and "github_username" in st.session_state and \
-                   st.session_state["github_username"] == DEVELOPER_GITHUB_USERNAME and \
-                   st.session_state["user"] == DEVELOPER_EMAIL
-
-    tabs = ["Sign In", "Sign Up"] + (["View Users"] if is_developer else [])
+    tabs = ["Sign In", "Sign Up"]
+    if st.session_state.get("is_developer", False):
+        tabs.append("View Users")
     tab_objs = st.tabs(tabs)
 
-    # --- SIGN IN TAB ---
     with tab_objs[0]:
         st.write("### Log in to your Fox account")
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
-        github_username = st.text_input("GitHub Username", placeholder="your-github-username", key="login_github")
+        github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
+
+        if github_username != st.session_state.github_username_input:
+            st.session_state.github_username_input = github_username
+            st.experimental_rerun()
+
         password = st.text_input("Password", type="password", key="login_password")
+
+        show_fav_word_input = st.session_state.github_username_input == DEVELOPER_GITHUB_USERNAME
+        if show_fav_word_input:
+            fav_word = st.text_input("If you are the developer, please enter your favorite word:", type="password", key="fav_word_input")
+        else:
+            fav_word = None
 
         if st.button("Sign In"):
             if not valid_email(email):
                 st.error("Invalid email format! Must end with @fox.ai")
-            elif not github_username:
-                st.error("GitHub username required.")
-            else:
-                user = get_user(email)
-                if user:
-                    _, stored_github, stored_hash = user
-                    if github_username != stored_github:
-                        st.error("GitHub username does not match our records.")
-                    elif bcrypt.checkpw(password.encode(), stored_hash):
+                return
+
+            user = get_user(email)
+            if not user:
+                st.error("No account found. Please sign up.")
+                return
+
+            stored_email, stored_github, stored_hash = user
+
+            if not bcrypt.checkpw(password.encode(), stored_hash):
+                st.error("Incorrect password.")
+                return
+
+            if show_fav_word_input:
+                if fav_word:
+                    fav_word_hash = hashlib.sha256(fav_word.encode('utf-8')).hexdigest()
+                    if fav_word_hash == FAVORITE_WORD_HASH:
+                        st.session_state["is_developer"] = True
                         st.session_state["user"] = email
                         st.session_state["github_username"] = github_username
-                        log_event(email, "sign-in")
-                        st.success(f"Welcome back, {email.split('@')[0]}!")
+                        log_event(email, "sign-in (developer)")
+                        st.success(f"Welcome back, Developer {email.split('@')[0]}!")
                         st.rerun()
                     else:
-                        st.error("Incorrect password.")
+                        st.error("Wrong favorite word. Access denied.")
                 else:
-                    st.error("No account found. Please sign up.")
+                    st.info("Please enter favorite word to verify developer status.")
+            else:
+                st.session_state["is_developer"] = False
+                st.session_state["user"] = email
+                st.session_state["github_username"] = github_username or ""
+                log_event(email, "sign-in")
+                st.success(f"Welcome back, {email.split('@')[0]}!")
+                st.rerun()
 
-    # --- SIGN UP TAB ---
     with tab_objs[1]:
         st.write("### Create a Fox account")
         new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
-        new_github = st.text_input("GitHub Username", placeholder="your-github-username", key="signup_github")
+        new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
         new_password = st.text_input("Password", type="password", key="signup_password")
 
         if st.button("Sign Up"):
             if not valid_email(new_email):
                 st.error("Invalid email! Only @fox.ai addresses allowed.")
-            elif not new_github:
-                st.error("GitHub username is required.")
-            elif len(new_password) < 6:
+                return
+            if len(new_password) < 6:
                 st.warning("Password must be at least 6 characters long.")
-            else:
-                try:
-                    add_user(new_email, new_github, new_password)
-                    log_event(new_email, "sign-up")
-                    st.success("Account created successfully! You can now sign in.")
-                except sqlite3.IntegrityError:
-                    st.warning("Email already registered.")
+                return
+            try:
+                add_user(new_email, new_github or "", new_password)
+                log_event(new_email, "sign-up")
+                st.success("Account created successfully! You can now sign in.")
+            except sqlite3.IntegrityError:
+                st.warning("This email is already registered.")
 
-    # --- VIEW USERS TAB (only developer) ---
-    if is_developer:
+    if st.session_state.get("is_developer", False) and len(tab_objs) == 3:
         with tab_objs[2]:
             st.write("### Registered Users")
             users = fetch_all_users()
             if users:
                 for email, github_username in users:
-                    st.write(f"Email: {email} | GitHub: {github_username}")
+                    st.write(f"Email: {email} | GitHub: {github_username or 'N/A'}")
             else:
                 st.info("No registered users yet.")
 
-# ----------------------------------
-# MAIN FOX AI APP
-# ----------------------------------
 def show_fox_ai_app():
     st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
     st.sidebar.title("Fox AI")
@@ -199,12 +213,11 @@ def show_fox_ai_app():
     if st.sidebar.button("Log Out"):
         del st.session_state["user"]
         del st.session_state["github_username"]
+        del st.session_state["is_developer"]
         st.rerun()
 
     st.title("🦊 Fox - AI Web App Maker")
-    st.chat_message("ai", avatar="🦊").write(
-        "Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!"
-    )
+    st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
 
     if API_KEY:
         genai.configure(api_key=API_KEY)
@@ -258,9 +271,6 @@ User prompt: {prompt}
     st.markdown("---")
     st.caption('Fox - Powered by Gemini • Developed by Debayan Das • Grade 7 • THS Rampurhat, India')
 
-# ----------------------------------
-# MAIN APP EXECUTION
-# ----------------------------------
 if "user" not in st.session_state:
     show_login_ui()
 else:
