@@ -1,99 +1,201 @@
 import streamlit as st
+import sqlite3
+import bcrypt
+import re
+import os
 import google.generativeai as genai
 from io import BytesIO
 import base64
 
-# -------------------------------
-# App Setup
-# -------------------------------
-st.set_page_config(page_title="Fox - AI Web App Maker",page_icon="https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", layout="wide")
-
-st.title("🦊 Fox - AI Web App Maker")
-st.chat_message("ai",avatar="🦊").write("Hi, I'm fox I take a bit time & Generate and preview complete web apps instantly!")
-
-# -------------------------------
-# Gemini API Setup
-# -------------------------------
-api_key = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
-if api_key:
-    genai.configure(api_key=api_key)
-
-# -------------------------------
-# Version Selector
-# -------------------------------
-version = st.selectbox("Choose Fox Version", ["Pro", "Max"], index=0)
-
-model_map = {
-    "Pro": "gemini-2.5-flash",
-    "Max": "gemini-2.5-pro"
-}
-
-model_name = model_map[version]
-
-# -------------------------------
-# App Creation Prompt
-# -------------------------------
-st.subheader("Describe the web app you want to create")
-prompt = st.text_area(
-    "Enter your idea",
-    placeholder="Example: A weather dashboard with live API data and interactive temperature chart"
+# ----------------------------------
+# CONFIGURATION
+# ----------------------------------
+st.set_page_config(
+    page_title="Fox - AI Web App Maker",
+    page_icon="https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg",
+    layout="wide"
 )
 
-if st.button("Generate Web App"):
-    if not api_key:
-        st.error("Please enter your Gemini API Key first.")
-    elif not prompt.strip():
-        st.warning("Please describe your app first.")
-    else:
-        with st.spinner("🦊 Fox is building your web app..."):
-            model = genai.GenerativeModel(model_name)
-            full_prompt = f"""
-You are Fox, an AI agent that creates full, working web apps using HTML, CSS, and JavaScript.
+DB_FILE = "fox_users.db"
+API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
 
+# ----------------------------------
+# DATABASE FUNCTIONS
+# ----------------------------------
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE,
+            password_hash BLOB
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def add_user(email, password):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    cursor.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, hashed_pw))
+    conn.commit()
+    conn.close()
+
+def get_user(email):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
+    user = cursor.fetchone()
+    conn.close()
+    return user
+
+def valid_email(email):
+    pattern = r"^[a-zA-Z0-9._%+-]+@fox\.ai$"
+    return re.match(pattern, email)
+
+# Initialize database if needed
+if not os.path.exists(DB_FILE):
+    init_db()
+
+# ----------------------------------
+# AUTHENTICATION UI
+# ----------------------------------
+def show_login_ui():
+    st.title("🦊 Fox AI — App Maker")
+    st.subheader("Build and manage your AI-powered web apps")
+
+    tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+
+    # --- SIGN IN TAB ---
+    with tab1:
+        st.write("### Log in to your Fox account")
+        email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
+        password = st.text_input("Password", type="password", key="login_password")
+
+        if st.button("Sign In"):
+            if not valid_email(email):
+                st.error("Invalid email format! Must end with @fox.ai")
+            else:
+                user = get_user(email)
+                if user:
+                    stored_hash = user[1]
+                    if bcrypt.checkpw(password.encode(), stored_hash):
+                        st.session_state["user"] = email
+                        st.success(f"Welcome back, {email.split('@')[0]}!")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect password.")
+                else:
+                    st.error("No account found. Please sign up.")
+
+    # --- SIGN UP TAB ---
+    with tab2:
+        st.write("### Create a Fox account")
+        new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
+        new_password = st.text_input("Password", type="password", key="signup_password")
+
+        if st.button("Sign Up"):
+            if not valid_email(new_email):
+                st.error("Invalid email! Only @fox.ai addresses are allowed.")
+            elif len(new_password) < 6:
+                st.warning("Password must be at least 6 characters long.")
+            else:
+                try:
+                    add_user(new_email, new_password)
+                    st.success("Account created successfully! You can now sign in.")
+                except sqlite3.IntegrityError:
+                    st.warning("This email is already registered.")
+
+# ----------------------------------
+# MAIN FOX AI APP
+# ----------------------------------
+def show_fox_ai_app():
+    st.sidebar.image("https://static.vecteezy.com/system/resources/previews/014/918/930/non_2x/fox-unique-logo-design-illustration-fox-icon-logo-fox-icon-design-illustration-vector.jpg", width=80)
+    st.sidebar.title("Fox AI")
+    st.sidebar.success(f"Logged in as {st.session_state['user']}")
+    if st.sidebar.button("Log Out"):
+        del st.session_state["user"]
+        st.rerun()
+
+    st.title("🦊 Fox - AI Web App Maker")
+    st.chat_message("ai", avatar="🦊").write(
+        "Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!"
+    )
+
+    # --- Gemini API Setup ---
+    if API_KEY:
+        genai.configure(api_key=API_KEY)
+    else:
+        st.error("Gemini API key missing.")
+        return
+
+    # --- Choose Version ---
+    version = st.selectbox("Choose Fox Version", ["Pro", "Max"], index=0)
+    model_map = {"Pro": "gemini-2.5-flash", "Max": "gemini-2.5-pro"}
+    model_name = model_map[version]
+
+    # --- App Creation Prompt ---
+    st.subheader("Describe the web app you want to create")
+    prompt = st.text_area(
+        "Enter your idea",
+        placeholder="Example: A weather dashboard with live API data and interactive temperature chart"
+    )
+
+    if st.button("Generate Web App"):
+        if not prompt.strip():
+            st.warning("Please describe your app first.")
+        else:
+            with st.spinner("🦊 Fox is building your web app..."):
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    full_prompt = f"""
+You are Fox, an AI agent that creates full, working web apps using HTML, CSS, and JavaScript.
 Task: Generate a complete and functional HTML code in one file.
 Requirements:
 - Include <html>, <head>, <style>, and <script> sections.
-- Use embedded CSS and JS (use external links for best performance).
+- Use embedded CSS and JS (use external links if needed).
 - The app must run directly in a browser.
-- give most powerful & accurate result to beat DeepSeek AI
+- Give the most powerful & accurate result to beat DeepSeek AI.
 - Output ONLY the HTML code (no explanations or markdown).
-
 User prompt: {prompt}
 """
-            response = model.generate_content(full_prompt)
-            html_code = response.text.strip()
+                    response = model.generate_content(full_prompt)
+                    html_code = response.text.strip()
 
-            # Display generated code
-            st.success("✅ Web app created successfully!")
-            st.subheader("Generated HTML Code")
-            st.code(html_code, language="html")
+                    # --- Display generated code ---
+                    st.success("✅ Web app created successfully!")
+                    st.subheader("Generated HTML Code")
+                    st.code(html_code, language="html")
 
-            # -------------------------------
-            # Live Preview (iframe)
-            # -------------------------------
-            st.subheader("Live Preview")
-            encoded_html = base64.b64encode(html_code.encode()).decode()
-            iframe_html = f'<iframe src="data:text/html;base64,{encoded_html}" width="100%" height="600"></iframe>'
-            st.components.v1.html(iframe_html, height=600)
+                    # --- Live Preview ---
+                    st.subheader("Live Preview")
+                    encoded_html = base64.b64encode(html_code.encode()).decode()
+                    iframe_html = f'<iframe src="data:text/html;base64,{encoded_html}" width="100%" height="600"></iframe>'
+                    st.components.v1.html(iframe_html, height=600)
 
-            # -------------------------------
-            # Download Option
-            # -------------------------------
-            buffer = BytesIO(html_code.encode('utf-8'))
-            st.download_button(
-                label="Download Web App",
-                data=buffer,
-                file_name="fox_app.html",
-                mime="text/html"
-            )
+                    # --- Download Option ---
+                    buffer = BytesIO(html_code.encode('utf-8'))
+                    st.download_button(
+                        label="Download Web App",
+                        data=buffer,
+                        file_name="fox_app.html",
+                        mime="text/html"
+                    )
 
-# -------------------------------
-# Footer
-# -------------------------------
-st.markdown("---")
-st.caption("Fox - AI Web App Maker • Powered by Gemini • Developed by Debayan")
+                except Exception as e:
+                    st.error(f"Gemini API Error: {e}")
 
+    st.markdown("---")
+    st.caption('Fox - Powered by Gemini • Developed by Debayan Das • Grade 7 • THS Rampurhat, India')
 
+# ----------------------------------
+# MAIN APP EXECUTION
+# ----------------------------------
+if "user" not in st.session_state:
+    show_login_ui()
+else:
+    show_fox_ai_app()
 
-
-
+st.write("---")
