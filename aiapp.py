@@ -156,6 +156,7 @@ def show_login_ui():
             st.session_state["logged_in"] = True
             log_event(email, "sign-in")
             st.success(f"Welcome back, {email.split('@')[0]}!")
+            st.write("Double click the button to reach to the Fox-AI")
             return
 
     with tab_objs[1]:
@@ -256,3 +257,4 @@ else:
     show_login_ui()
 
 st.write("---")
+
