@@ -179,7 +179,7 @@ def show_login_ui():
                         st.warning("This email is already registered.")
 
 def show_fox_ai_app():
-    st.sidebar.image(r"C:\Users\DEBAYAN\Pictures\Screenshots\Screenshot 2025-11-02 151506.png", width=80)
+    st.sidebar.image(r"Screenshot 2025-11-02 151506.png", width=80)
     st.sidebar.title("Fox AI")
     st.sidebar.success(f"Logged in as {st.session_state['user']}")
 
@@ -257,6 +257,7 @@ else:
     show_login_ui()
 
 st.write("---")
+
 
 
 
