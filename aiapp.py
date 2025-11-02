@@ -17,10 +17,9 @@ st.set_page_config(
 )
 
 DB_FILE = "fox.db"
-API_KEY = "AIzaSyBPKJayR9Ozp2t9DRLI9NXPRoiU5VZY6U"
-# Developer credentials (email and hashed password)
-DEVELOPER_EMAIL = "sachy@fox.ai"
-DEVELOPER_PASSWORD_HASH = bcrypt.hashpw("sachy00100101".encode(), bcrypt.gensalt())
+API_KEY = "AIzaSyBPKJayR9PBDHMtPpMAUgz3Y9oXDYZLHWU"
+DEVELOPER_GITHUB_USERNAME = "debayan00100101"  # trusted developer github username
+DEVELOPER_EMAIL = "debayan@fox.ai"  # trusted developer email for extra authentication
 
 # ----------------------------------
 # DATABASE FUNCTIONS
@@ -32,6 +31,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
+            github_username TEXT,
             password_hash BLOB
         )
     """)
@@ -46,11 +46,11 @@ def init_db():
     conn.commit()
     conn.close()
 
-def add_user(email, password):
+def add_user(email, github_username, password):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     hashed_pw = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-    cursor.execute("INSERT INTO users (email, password_hash) VALUES (?, ?)", (email, hashed_pw))
+    cursor.execute("INSERT INTO users (email, github_username, password_hash) VALUES (?, ?, ?)", (email, github_username, hashed_pw))
     conn.commit()
     conn.close()
 
@@ -58,7 +58,7 @@ def get_user(email):
     try:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("SELECT email, password_hash FROM users WHERE email = ?", (email,))
+        cursor.execute("SELECT email, github_username, password_hash FROM users WHERE email = ?", (email,))
         user = cursor.fetchone()
         conn.close()
         return user
@@ -83,12 +83,11 @@ def log_event(email, action):
 def fetch_all_users():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT email FROM users ORDER BY id DESC")
+    cursor.execute("SELECT email, github_username FROM users ORDER BY id DESC")
     users = cursor.fetchall()
     conn.close()
     return users
 
-# Ensure DB initialized properly
 if not os.path.exists(DB_FILE):
     init_db()
 else:
@@ -98,6 +97,7 @@ else:
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email TEXT UNIQUE,
+            github_username TEXT,
             password_hash BLOB
         )
     """)
@@ -119,68 +119,73 @@ def show_login_ui():
     st.title("🦊 Fox AI — App Maker")
     st.subheader("Build and manage your AI-powered web apps")
 
-    if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
-        tab1, tab2, tab3 = st.tabs(["Sign In", "Sign Up", "View Users"])
-    else:
-        tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+    # Determine if developer logged in with correct username and email
+    is_developer = "user" in st.session_state and "github_username" in st.session_state and \
+                   st.session_state["github_username"] == DEVELOPER_GITHUB_USERNAME and \
+                   st.session_state["user"] == DEVELOPER_EMAIL
 
-    with tab1:
+    tabs = ["Sign In", "Sign Up"] + (["View Users"] if is_developer else [])
+    tab_objs = st.tabs(tabs)
+
+    # --- SIGN IN TAB ---
+    with tab_objs[0]:
         st.write("### Log in to your Fox account")
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
+        github_username = st.text_input("GitHub Username", placeholder="your-github-username", key="login_github")
         password = st.text_input("Password", type="password", key="login_password")
 
         if st.button("Sign In"):
-            if email == DEVELOPER_EMAIL:
-                # Developer login verification
-                if bcrypt.checkpw(password.encode(), DEVELOPER_PASSWORD_HASH):
-                    st.session_state["user"] = DEVELOPER_EMAIL
-                    log_event(DEVELOPER_EMAIL, "sign-in")
-                    st.success(f"Welcome developer {DEVELOPER_EMAIL}!")
-                    st.rerun()
-                else:
-                    st.error("Incorrect password for developer.")
+            if not valid_email(email):
+                st.error("Invalid email format! Must end with @fox.ai")
+            elif not github_username:
+                st.error("GitHub username required.")
             else:
-                if not valid_email(email):
-                    st.error("Invalid email format! Must end with @fox.ai")
-                else:
-                    user = get_user(email)
-                    if user:
-                        stored_hash = user[1]
-                        if bcrypt.checkpw(password.encode(), stored_hash):
-                            st.session_state["user"] = email
-                            log_event(email, "sign-in")
-                            st.success(f"Welcome back, {email.split('@')[0]}!")
-                            st.rerun()
-                        else:
-                            st.error("Incorrect password.")
+                user = get_user(email)
+                if user:
+                    _, stored_github, stored_hash = user
+                    if github_username != stored_github:
+                        st.error("GitHub username does not match our records.")
+                    elif bcrypt.checkpw(password.encode(), stored_hash):
+                        st.session_state["user"] = email
+                        st.session_state["github_username"] = github_username
+                        log_event(email, "sign-in")
+                        st.success(f"Welcome back, {email.split('@')[0]}!")
+                        st.rerun()
                     else:
-                        st.error("No account found. Please sign up.")
+                        st.error("Incorrect password.")
+                else:
+                    st.error("No account found. Please sign up.")
 
-    with tab2:
+    # --- SIGN UP TAB ---
+    with tab_objs[1]:
         st.write("### Create a Fox account")
         new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
+        new_github = st.text_input("GitHub Username", placeholder="your-github-username", key="signup_github")
         new_password = st.text_input("Password", type="password", key="signup_password")
 
         if st.button("Sign Up"):
             if not valid_email(new_email):
-                st.error("Invalid email! Only @fox.ai addresses are allowed.")
+                st.error("Invalid email! Only @fox.ai addresses allowed.")
+            elif not new_github:
+                st.error("GitHub username is required.")
             elif len(new_password) < 6:
                 st.warning("Password must be at least 6 characters long.")
             else:
                 try:
-                    add_user(new_email, new_password)
+                    add_user(new_email, new_github, new_password)
                     log_event(new_email, "sign-up")
                     st.success("Account created successfully! You can now sign in.")
                 except sqlite3.IntegrityError:
-                    st.warning("This email is already registered.")
+                    st.warning("Email already registered.")
 
-    if "user" in st.session_state and st.session_state["user"] == DEVELOPER_EMAIL:
-        with tab3:
+    # --- VIEW USERS TAB (only developer) ---
+    if is_developer:
+        with tab_objs[2]:
             st.write("### Registered Users")
             users = fetch_all_users()
             if users:
-                for u in users:
-                    st.write(u[0])
+                for email, github_username in users:
+                    st.write(f"Email: {email} | GitHub: {github_username}")
             else:
                 st.info("No registered users yet.")
 
@@ -193,6 +198,7 @@ def show_fox_ai_app():
     st.sidebar.success(f"Logged in as {st.session_state['user']}")
     if st.sidebar.button("Log Out"):
         del st.session_state["user"]
+        del st.session_state["github_username"]
         st.rerun()
 
     st.title("🦊 Fox - AI Web App Maker")
@@ -211,10 +217,7 @@ def show_fox_ai_app():
     model_name = model_map[version]
 
     st.subheader("Describe the web app you want to create")
-    prompt = st.text_area(
-        "Enter your idea",
-        placeholder="Example: A weather dashboard with live API data and interactive temperature chart"
-    )
+    prompt = st.text_area("Enter your idea", placeholder="Example: A weather dashboard with live API data and interactive temperature chart")
 
     if st.button("Generate Web App"):
         if not prompt.strip():
@@ -247,12 +250,7 @@ User prompt: {prompt}
                     st.components.v1.html(iframe_html, height=600)
 
                     buffer = BytesIO(html_code.encode('utf-8'))
-                    st.download_button(
-                        label="Download Web App",
-                        data=buffer,
-                        file_name="fox_app.html",
-                        mime="text/html"
-                    )
+                    st.download_button(label="Download Web App", data=buffer, file_name="fox_app.html", mime="text/html")
 
                 except Exception as e:
                     st.error(f"Gemini API Error: {e}")
