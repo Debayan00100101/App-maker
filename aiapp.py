@@ -125,7 +125,7 @@ def show_login_ui():
     with tab_objs[0]:
         email = st.text_input("Email", placeholder="yourname@fox.ai", key="login_email")
 
-        github_username = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="login_github")
+        github_username = st.text_input("(Optional, for developer only) GitHub Username", placeholder="your-github-username", key="login_github")
         if st.session_state.github_username_input != github_username:
             st.session_state.github_username_input = github_username
 
@@ -268,3 +268,4 @@ else:
     show_login_ui()
 
 st.write("---")
+
