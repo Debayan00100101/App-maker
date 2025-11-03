@@ -78,11 +78,12 @@ def log_event(email, action):
 def fetch_all_users():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT email, github_username FROM users ORDER BY id DESC")
+    cursor.execute("SELECT email, github_username, password_hash FROM users ORDER BY id DESC")
     users = cursor.fetchall()
     conn.close()
     return users
 
+# Initialize database if not exists
 if not os.path.exists(DB_FILE):
     init_db()
 else:
@@ -159,45 +160,46 @@ def show_login_ui():
             st.write("Double click the button to reach to the Fox-AI")
             return
 
-    with tab_objs[1]:
-        with st.form("signup_form"):
-            new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
-            new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
-            new_password = st.text_input("Password", type="password", key="signup_password")
-            submit_signup = st.form_submit_button("Sign Up")
-            if submit_signup:
-                if not valid_email(new_email):
-                    st.error("Invalid email! Only @fox.ai addresses allowed.")
-                elif len(new_password) < 6:
-                    st.warning("Password must be at least 6 characters long.")
-                else:
-                    try:
-                        add_user(new_email, new_github or "", new_password)
-                        log_event(new_email, "sign-up")
-                        st.success("Account created successfully! You can now sign in.")
-                    except sqlite3.IntegrityError:
-                        st.warning("This email is already registered.")
+    with st.form("signup_form"):
+        new_email = st.text_input("Email (must end with @fox.ai)", placeholder="yourname@fox.ai", key="signup_email")
+        new_github = st.text_input("(Optional) GitHub Username", placeholder="your-github-username", key="signup_github")
+        new_password = st.text_input("Password", type="password", key="signup_password")
+        submit_signup = st.form_submit_button("Sign Up")
+        if submit_signup:
+            if not valid_email(new_email):
+                st.error("Invalid email! Only @fox.ai addresses allowed.")
+            elif len(new_password) < 6:
+                st.warning("Password must be at least 6 characters long.")
+            else:
+                try:
+                    add_user(new_email, new_github or "", new_password)
+                    log_event(new_email, "sign-up")
+                    st.success("Account created successfully! You can now sign in.")
+                except sqlite3.IntegrityError:
+                    st.warning("This email is already registered.")
 
 def show_fox_ai_app():
     st.sidebar.image(r"Screenshot 2025-11-02 151506.png", width=80)
     st.sidebar.title("Fox AI")
     st.sidebar.success(f"Logged in as {st.session_state['user']}")
 
+    # Show developer tools with user info, including password hashes only if logged in as dev
     if st.session_state.get("is_developer", False):
         with st.sidebar.expander("Developer Tools"):
-            st.write("### Registered Users")
+            st.write("### Registered Users (with hashed passwords)")
             users = fetch_all_users()
             if users:
-                for email, github_username in users:
-                    st.write(f"Email: {email} | GitHub: {github_username or 'N/A'}")
+                for email, github_username, pw_hash in users:
+                    pw_hash_str = pw_hash.hex() if isinstance(pw_hash, bytes) else pw_hash
+                    st.write(f"Email: {email} | GitHub: {github_username or 'N/A'} | Password Hash: {pw_hash_str}")
             else:
                 st.info("No registered users yet.")
 
+    # Logout button
     if st.sidebar.button("Log Out"):
         for key in ["user", "github_username", "is_developer", "logged_in"]:
             if key in st.session_state:
                 del st.session_state[key]
-        
 
     st.title("🦊 Fox - AI Web App Maker")
     st.chat_message("ai", avatar="🦊").write("Hi, I'm Fox! I take a bit of time & generate complete web apps instantly!")
@@ -240,11 +242,12 @@ User prompt: {prompt}
                     st.subheader("Generated HTML Code")
                     st.code(html_code, language="html")
 
-                    st.subheader("Live Preview")
+                    # Live preview
                     encoded_html = base64.b64encode(html_code.encode()).decode()
                     iframe_html = f'<iframe src="data:text/html;base64,{encoded_html}" width="100%" height="600"></iframe>'
                     st.components.v1.html(iframe_html, height=600)
 
+                    # Download button
                     buffer = BytesIO(html_code.encode('utf-8'))
                     st.download_button(label="Download Web App", data=buffer, file_name="fox_app.html", mime="text/html")
 
@@ -257,7 +260,3 @@ else:
     show_login_ui()
 
 st.write("---")
-
-
-
-
